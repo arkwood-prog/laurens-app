@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laurens App</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0F1114">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Laurens App">
+<meta name="description" content="Offline strength training log — routines, sets, animations and progress, stored on your phone.">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div>
+      <h1>Laurens<span> App</span></h1>
+      <div class="header-sub" id="greeting"></div>
+    </div>
+    <button class="icon-btn" id="profileBtn" aria-label="You and settings">☰</button>
+  </header>
+
+  <main>
+    <section id="view-train"></section>
+    <section id="view-routines" hidden></section>
+    <section id="view-library" hidden></section>
+    <section id="view-history" hidden></section>
+    <section id="view-stats" hidden></section>
+  </main>
+
+  <nav>
+    <button data-view="train" class="on"><span class="ic">◉</span>Train<span class="dot" id="activeDot" hidden></span></button>
+    <button data-view="routines"><span class="ic">☰</span>Routines</button>
+    <button data-view="library"><span class="ic">⌕</span>Library</button>
+    <button data-view="history"><span class="ic">◷</span>History</button>
+    <button data-view="stats"><span class="ic">◪</span>Progress</button>
+  </nav>
+</div>
+
+<!-- bottom sheet -->
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <div class="sheet-grip"></div>
+  <div class="sheet-head">
+    <h2 id="sheetTitle"></h2>
+    <button class="icon-btn" id="sheetClose" aria-label="Close">✕</button>
+  </div>
+  <div class="sheet-body" id="sheetBody"></div>
+  <div id="sheetAction" style="padding:10px 14px 14px"></div>
+</div>
+
+<!-- rest timer -->
+<div id="restOverlay">
+  <div class="eyebrow" style="margin-bottom:16px">Rest</div>
+  <div class="rest-ring">
+    <svg width="232" height="232" viewBox="0 0 232 232">
+      <circle cx="116" cy="116" r="100" stroke="#22262C" stroke-width="13" fill="none"/>
+      <circle id="restRing" cx="116" cy="116" r="100" stroke="#3987E5" stroke-width="13" fill="none"
+        stroke-linecap="round" stroke-dasharray="628.3" stroke-dashoffset="0"/>
+    </svg>
+    <div class="rest-num" id="restNum">90</div>
+  </div>
+  <div class="rest-next" id="restNext"></div>
+  <div class="rest-adjust">
+    <button id="restMinus">−15s</button>
+    <button id="restPlus">+15s</button>
+  </div>
+  <button class="btn btn-ghost" id="restSkip" style="width:auto;padding:12px 30px;margin-top:22px">Skip rest</button>
+</div>
+
+<div id="toast"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

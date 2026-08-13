@@ -1,0 +1,7 @@
+# Local Claude Code settings — not part of the app
+.claude/
+
+# Windows / macOS junk
+Thumbs.db
+desktop.ini
+.DS_Store
