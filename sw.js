@@ -1,9 +1,9 @@
-/* Laurens App service worker.
+/* Train App service worker.
  *
  * Cache-first for the app shell so the phone opens it instantly and works with
  * no signal at all. Bump CACHE to ship an update. */
 
-const CACHE = 'laurens-app-v2';
+const CACHE = 'train-app-v3';
 
 const SHELL = [
   './',
@@ -15,6 +15,8 @@ const SHELL = [
   './exercises.js',
   './anim.js',
   './charts.js',
+  './generator.js',
+  './anthropic-sdk.js',
   './icon-192.png',
   './icon-512.png',
   './apple-touch-icon.png',

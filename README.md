@@ -1,13 +1,20 @@
-# Laurens App
+# Train App
 
 An offline workout tracker that installs to the iPhone home screen and behaves
-like a native app. No account, no server, no network calls — every workout,
-routine and measurement lives in the phone's own storage.
+like a native app. No account, no server — every workout, routine and
+measurement lives in the phone's own storage. The only network call is the
+optional AI workout generator, and only if you give it an API key.
 
 ## What it does
 
 - **199 built-in exercises** across barbell, dumbbell, cable, kettlebell,
   bodyweight, machine, band and cardio — plus your own custom ones.
+- **Workout generator** — on the Train tab, tick the equipment you have
+  (barbell, dumbbell, cable…) and the body areas to hit, pick a time, and it
+  builds a session from the exercise library. With a Claude API key saved under
+  **☰** the workout is designed by Claude AI; without one (or with no signal) a
+  built-in offline generator does it. Start it straight away or save it as a
+  routine.
 - **Routines** — pick exercises, set targets (sets × reps), reorder them, save.
   Start one with a single tap and the whole session is pre-filled.
 - **Set logging** — weight and reps per set, with last session's numbers shown
@@ -49,7 +56,7 @@ leaves them behind.
 
 Open `LaurensWorkouts` in File Explorer, press **Ctrl+A** to select everything,
 and drag it onto the GitHub upload area (or use "choose your files", which now
-works too). Wait until all 14 files are listed, then **Commit changes**.
+works too). Wait until all 16 files are listed, then **Commit changes**.
 
 The repo root must end up looking like this — `index.html` at the top level,
 no folder wrapping it:
@@ -57,6 +64,7 @@ no folder wrapping it:
 ```
 index.html   manifest.json   sw.js   README.md
 app.css      app.js   store.js   exercises.js   anim.js   charts.js
+generator.js   anthropic-sdk.js
 icon-192.png   icon-512.png   apple-touch-icon.png
 .nojekyll    .gitignore
 ```
@@ -76,7 +84,7 @@ Wait a minute or two, refresh, and the URL appears at the top:
 
 ### Step 4 — Check it on the computer first
 
-Open that URL in any browser. You should see the dark **Laurens App** screen.
+Open that URL in any browser. You should see the dark **Train App** screen.
 A 404 usually just means Pages has not finished building — wait a minute and
 retry before changing anything.
 
@@ -89,7 +97,7 @@ retry before changing anything.
    is written.
 4. Tap the **Share** button (the square with an arrow, bottom centre).
 5. Scroll down and tap **Add to Home Screen**.
-6. Leave the name as "Laurens App" and tap **Add**.
+6. Leave the name as "Train App" and tap **Add**.
 
 ### Step 6 — Prove offline mode works
 
@@ -148,6 +156,19 @@ re-import on a new phone via **Import backup**. If you used the earlier version
 of this app, its history is imported automatically the first time you open this
 one.
 
+## AI workouts
+
+The generator works without any setup. To have Claude design the workouts
+instead, get an API key at <https://console.anthropic.com>, then **☰ → Claude
+API key → Save**. Things to know:
+
+- The key is stored on the phone only (its own storage slot, not in backups)
+  and is sent only to Anthropic's API. API usage is billed to that key.
+- Claude chooses only from this app's exercise library, so every exercise it
+  suggests has an animation and logs like any other.
+- If the request fails (no signal, bad key), the offline generator steps in and
+  the workout sheet says why.
+
 ## About the animations
 
 They are original, drawn by this app in SVG and released as public domain
@@ -172,6 +193,8 @@ static host in one go.
 | `exercises.js` | The exercise catalogue |
 | `anim.js` | Animation engine and movement patterns |
 | `charts.js` | SVG charts |
+| `generator.js` | Workout generator (Claude AI + offline fallback) |
+| `anthropic-sdk.js` | Anthropic SDK, bundled locally; loaded only for AI workouts |
 | `sw.js` | Service worker (offline cache) |
 | `.nojekyll` | Stops GitHub Pages running Jekyll over the files |
 
@@ -181,7 +204,7 @@ static host in one go.
   `exercises.js`. `pattern` must name one of the patterns in `anim.js`.
   (You can also add one from inside the app: **Library → Create custom
   exercise**.)
-- **After editing any file:** bump `CACHE` in `sw.js` (e.g. `laurens-app-v2`),
+- **After editing any file:** bump `CACHE` in `sw.js` (e.g. `train-app-v4`),
   re-upload, then open the app on the phone **twice**. The first launch serves
   the old cached copy while quietly fetching the new one; the second shows it.
   Skipping the version bump is why an update can appear to do nothing.

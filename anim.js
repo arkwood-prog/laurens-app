@@ -1,4 +1,4 @@
-/* Laurens App — exercise animation engine.
+/* Train App — exercise animation engine.
  *
  * Original public-domain (CC0) artwork: an articulated figure drawn as SVG and
  * posed by inverse kinematics. Nothing is fetched from the network, so the

@@ -1,4 +1,4 @@
-/* Laurens App — stylesheet.
+/* Train App — stylesheet.
  * System font stack only: no webfont request, so the app renders identically
  * with the phone in aeroplane mode. */
 
@@ -178,6 +178,39 @@ h3 { font-size: 15px; font-weight: 650; margin: 0 0 6px; }
 }
 .chip-row::-webkit-scrollbar { display: none; }
 
+/* ── workout generator tick boxes ─────────────────────────────────── */
+
+.gen-card { padding: 14px; }
+.gen-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-dim);
+  margin: 4px 0 8px;
+}
+.gen-label span { text-transform: none; letter-spacing: 0; font-weight: 500; margin-left: 4px; }
+.tick-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tick-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 14px; font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  -webkit-user-select: none; user-select: none;
+}
+.tick-chip input {
+  -webkit-appearance: none; appearance: none;
+  width: 19px; height: 19px; margin: 0;
+  border: 1.5px solid var(--text-dim);
+  border-radius: 5px;
+  display: grid; place-content: center;
+  flex: 0 0 auto;
+}
+.tick-chip input:checked { background: var(--accent); border-color: var(--accent); }
+.tick-chip input:checked::after { content: '✓'; color: #fff; font-size: 13px; font-weight: 800; line-height: 1; }
+.tick-chip:has(input:checked) { border-color: var(--accent); color: var(--text); }
+
 /* ── form controls ────────────────────────────────────────────────── */
 
 label.field { display: block; margin-bottom: 12px; }
@@ -188,7 +221,7 @@ label.field > span {
   margin-bottom: 6px;
 }
 
-input[type=text], input[type=number], input[type=search], input[type=date], textarea, select {
+input[type=text], input[type=password], input[type=number], input[type=search], input[type=date], textarea, select {
   width: 100%;
   background: var(--surface-2);
   border: 1px solid var(--line);

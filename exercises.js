@@ -1,4 +1,4 @@
-/* Laurens App — exercise catalogue.
+/* Train App — exercise catalogue.
  *
  * Each entry:
  *   id        stable slug (never change: sessions reference it)

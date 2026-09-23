@@ -1,8 +1,9 @@
-/* Laurens App — views, routing and interaction. */
+/* Train App — views, routing and interaction. */
 
 import { EQUIPMENT, GROUPS } from './exercises.js';
 import * as S from './store.js';
 import { animate, renderStill } from './anim.js';
+import * as G from './generator.js';
 import { barChart, hBarChart, lineChart, initVizTooltips, fmtShortDate } from './charts.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -19,6 +20,8 @@ const ui = {
   statsExercise: null,
   pickTarget: null,          // 'workout' | 'routine'
   picked: new Set(),
+  generated: null,           // last generated workout, shown in the sheet
+  generating: false,
 };
 
 let stopAnim = null;         // teardown for the animation currently on screen
@@ -132,6 +135,8 @@ function startScreenHTML() {
     <button class="btn btn-primary" data-act="quick-start">Empty workout</button>
     <div style="height:10px"></div>
 
+    ${generatorHTML()}
+
     ${routines.length ? `
       <div class="eyebrow" style="margin:16px 2px 8px">Your routines</div>
       <div class="card flush">
@@ -163,6 +168,95 @@ function startScreenHTML() {
     ${last ? `<div class="divider"></div><div class="small dim" style="text-align:center">
       Bodyweight ${esc(displayWeight(last.w, last.u))} ${unit()} · logged ${fmtDate(last.date)}</div>` : ''}
   `;
+}
+
+/* ── workout generator ─────────────────────────────────────────────── */
+
+const GEN_MINUTES = [30, 45, 60, 75];
+
+function genPrefs() {
+  const st = S.state.settings;
+  return { eq: st.genEq || [], groups: st.genGroups || [], minutes: st.genMinutes || 45 };
+}
+
+function generatorHTML() {
+  const p = genPrefs();
+  const ai = !!G.getApiKey();
+  const tick = (name, value, label, on) => `
+    <label class="tick-chip"><input type="checkbox" name="${name}" value="${value}" ${on ? 'checked' : ''}>${esc(label)}</label>`;
+
+  return `
+    <div class="eyebrow" style="margin:16px 2px 8px">Generate a workout${ai ? ' with AI' : ''}</div>
+    <div class="card gen-card">
+      <div class="gen-label">Equipment <span>any if none ticked</span></div>
+      <div class="tick-grid">${EQUIPMENT.map(e => tick('genEq', e.id, e.label, p.eq.includes(e.id))).join('')}</div>
+
+      <div class="gen-label">Target body area <span>full body if none ticked</span></div>
+      <div class="tick-grid">${GROUPS.map(g => tick('genGroups', g, g, p.groups.includes(g))).join('')}</div>
+
+      <div class="gen-label">Time</div>
+      <div class="seg" id="genMinSeg">
+        ${GEN_MINUTES.map(m => `<button data-min="${m}" class="${p.minutes === m ? 'on' : ''}">${m} min</button>`).join('')}
+      </div>
+
+      ${ai ? `<input type="text" id="genGoal" placeholder="Anything else? e.g. strength focus, sore knee" autocomplete="off" style="margin-top:12px">` : ''}
+
+      <button class="btn btn-primary" data-act="generate" style="margin-top:12px" ${ui.generating ? 'disabled' : ''}>
+        ${ui.generating ? 'Generating…' : '✦ Generate workout'}</button>
+      <div class="small dim" style="margin-top:8px;text-align:center">
+        ${ai ? 'Designed by Claude AI from your exercise library.'
+             : 'Using the offline generator. Add a Claude API key under ☰ for AI-designed workouts.'}</div>
+    </div>`;
+}
+
+async function runGenerator() {
+  if (ui.generating) return;
+  const opts = { ...genPrefs(), goal: ($('#genGoal')?.value || '').trim() };
+  if (!G.candidates(opts).length) { toast('No exercises match — tick more boxes'); return; }
+  ui.generating = true;
+  if (view === 'train' && !S.state.active) renderTrain();
+  try {
+    ui.generated = await G.generate(opts);
+    showGenerated();
+  } finally {
+    ui.generating = false;
+    if (view === 'train' && !S.state.active) renderTrain();
+  }
+}
+
+function showGenerated() {
+  const w = ui.generated;
+  if (!w) return;
+  openSheet(w.source === 'ai' ? 'Your AI workout' : 'Your workout', `
+    <label class="field"><span>Workout name</span>
+      <input type="text" id="genName" value="${esc(w.name)}" autocomplete="off"></label>
+    ${w.notes ? `<div class="banner">${esc(w.notes)}</div>` : ''}
+    ${w.items.length ? `<div class="card flush" style="margin-bottom:10px">${w.items.map((it, i) => {
+      const ex = S.exById(it.exId);
+      const dose = ex.type === 'cardio' ? 'Log time & distance'
+        : `${it.sets} × ${it.reps ?? '—'}${ex.type === 'time' ? ' sec' : ''}`;
+      return `<div class="list-item">
+        ${thumbHTML(ex)}
+        <div class="grow">
+          <div class="truncate" style="font-weight:650">${esc(ex.name)}</div>
+          <div class="meta truncate">${esc(dose)} · ${esc(ex.target)}</div>
+        </div>
+        <button class="icon-btn" data-act="gen-del" data-i="${i}" aria-label="Remove">✕</button>
+      </div>`;
+    }).join('')}</div>` : `<div class="banner">Every exercise removed — generate again.</div>`}
+    <button class="btn btn-ghost" data-act="gen-save">Save as routine</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-ghost" data-act="gen-again">↻ Generate another</button>
+  `, {
+    action: `<button class="btn btn-primary" data-act="gen-start" ${w.items.length ? '' : 'disabled'}>Start this workout</button>`,
+    onOpen: hydrateThumbs,
+  });
+}
+
+function genName() {
+  const n = ($('#genName')?.value || '').trim();
+  if (n) ui.generated.name = n;
+  return ui.generated.name;
 }
 
 function routineSummary(r) {
@@ -756,6 +850,11 @@ function showProfile() {
       <button data-sound="0" class="${!st.sound ? 'on' : ''}">Silent</button>
     </div>
 
+    <label class="field"><span>Claude API key (for AI workouts)</span>
+      <input type="password" id="pfAiKey" value="${esc(G.getApiKey())}" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
+    <div class="small dim" style="margin:-6px 0 16px">Optional. Stored on this phone only and never included in backups.
+      Get one at console.anthropic.com. Without it, workouts are generated offline.</div>
+
     <h3>Bodyweight log</h3>
     <div class="card">
       <div class="row">
@@ -777,7 +876,7 @@ function showProfile() {
     <div style="height:8px"></div>
     <button class="btn btn-danger" data-act="wipe">Erase all data</button>
     <div style="height:14px"></div>
-    <div class="small dim" style="text-align:center">Laurens App · ${S.state.sessions.length} workouts · ${S.allExercises().length} exercises</div>
+    <div class="small dim" style="text-align:center">Train App · ${S.state.sessions.length} workouts · ${S.allExercises().length} exercises</div>
   `, { action: `<button class="btn btn-primary" data-act="save-profile">Save</button>` });
 }
 
@@ -788,6 +887,7 @@ function saveProfile() {
   p.birthYear = numOrNull($('#pfBirth')?.value);
   const rest = numOrNull($('#pfRest')?.value);
   if (rest) st.defaultRest = Math.max(10, Math.min(600, rest));
+  if ($('#pfAiKey')) G.setApiKey($('#pfAiKey').value.trim());
   S.saveNow();
   closeSheet();
   render();
@@ -872,7 +972,7 @@ function exportBackup() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `laurens-app-backup-${S.todayISO()}.json`;
+  a.download = `train-app-backup-${S.todayISO()}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -926,6 +1026,32 @@ const ACTIONS = {
   'start-with': (el) => {
     closeSheet();
     startWorkout(newSession('Workout', null, [{ exId: el.dataset.id, sets: 3 }]));
+  },
+
+  'generate': runGenerator,
+  'gen-again': () => { closeSheet(); runGenerator(); },
+  'gen-del': (el) => {
+    genName();
+    ui.generated.items.splice(+el.dataset.i, 1);
+    showGenerated();
+  },
+  'gen-start': () => {
+    const w = ui.generated;
+    if (!w || !w.items.length) return;
+    const name = genName();
+    closeSheet();
+    startWorkout(newSession(name, null, w.items));
+  },
+  'gen-save': () => {
+    const w = ui.generated;
+    if (!w || !w.items.length) return;
+    S.state.routines.push({
+      id: S.uid(), name: genName(), note: w.notes || '',
+      items: w.items.map(it => ({ ...it })), created: new Date().toISOString(),
+    });
+    S.saveNow();
+    closeSheet();
+    toast('Saved to Routines');
   },
 
   'add-exercise': () => openPicker('workout'),
@@ -1131,6 +1257,14 @@ document.addEventListener('click', (ev) => {
     return;
   }
 
+  const minBtn = ev.target.closest('#genMinSeg button');
+  if (minBtn) {
+    S.state.settings.genMinutes = +minBtn.dataset.min;
+    S.save();
+    $$('#genMinSeg button').forEach(b => b.classList.toggle('on', b === minBtn));
+    return;
+  }
+
   const seg = ev.target.closest('#unitSeg button, #soundSeg button');
   if (seg) {
     if (seg.dataset.unit) S.state.settings.unit = seg.dataset.unit;
@@ -1145,6 +1279,14 @@ document.addEventListener('click', (ev) => {
     ev.preventDefault();
     ACTIONS[act.dataset.act](act);
   }
+});
+
+/* Generator tick boxes: remember the selection without re-rendering. */
+document.addEventListener('change', (ev) => {
+  const t = ev.target;
+  if (t.name !== 'genEq' && t.name !== 'genGroups') return;
+  S.state.settings[t.name] = $$(`input[name=${t.name}]:checked`).map(i => i.value);
+  S.save();
 });
 
 /* Live-updating numeric inputs: never re-render, or the keyboard closes. */
