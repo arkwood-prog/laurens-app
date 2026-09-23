@@ -4,6 +4,7 @@ import { EQUIPMENT, GROUPS } from './exercises.js';
 import * as S from './store.js';
 import { animate, renderStill } from './anim.js';
 import * as G from './generator.js';
+import { GUIDES, PHOTO_FILES } from './guides.js';
 import { barChart, hBarChart, lineChart, initVizTooltips, fmtShortDate } from './charts.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -536,19 +537,26 @@ function saveRoutine() {
 
 /* ── LIBRARY ───────────────────────────────────────────────────────── */
 
+/* Gym shorthand people actually type. */
+const SEARCH_ALIASES = {
+  rdl: 'romanian deadlift', sldl: 'stiff-leg deadlift', ohp: 'overhead press',
+  db: 'dumbbell', bb: 'barbell', kb: 'kettlebell', bw: 'bodyweight', sl: 'single-leg',
+};
+
 function filteredExercises() {
-  const q = ui.libQuery.trim().toLowerCase();
+  // Every word must match somewhere; "db rdl" finds Dumbbell Romanian Deadlift.
+  const words = ui.libQuery.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    .map(w => SEARCH_ALIASES[w] || w);
   return S.allExercises().filter(ex => {
     if (ui.libEq !== 'all' && ex.eq !== ui.libEq) return false;
     if (ui.libGroup !== 'all' && ex.group !== ui.libGroup) return false;
-    if (q && !(ex.name.toLowerCase().includes(q) || ex.target.toLowerCase().includes(q))) return false;
-    return true;
+    const hay = `${ex.name} ${ex.target} ${ex.eq}`.toLowerCase();
+    return words.every(w => hay.includes(w));
   });
 }
 
 function renderLibrary() {
   const root = $('#view-library');
-  const list = filteredExercises();
 
   root.innerHTML = `
     <h2>Exercise library</h2>
@@ -562,13 +570,23 @@ function renderLibrary() {
       ${GROUPS.map(g => `<button class="chip ${ui.libGroup === g ? 'on' : ''}" data-group="${g}">${esc(g)}</button>`).join('')}
     </div>
 
-    <div class="small dim" style="margin:2px 2px 8px">${list.length} exercise${list.length === 1 ? '' : 's'}</div>
-    ${list.length ? `<div class="card flush">${list.map(ex => exRowHTML(ex)).join('')}</div>`
-      : `<div class="empty-state"><strong>Nothing matches</strong>Try a different filter or search term.</div>`}
+    <div id="libResults"></div>
     <div style="height:8px"></div>
     <button class="btn btn-ghost" data-act="new-custom">+ Create custom exercise</button>
   `;
-  hydrateThumbs(root);
+  renderLibraryResults();
+}
+
+/* Only the results change while typing. Rebuilding the search box itself
+ * would put iOS's cursor back at the start, typing the query backwards. */
+function renderLibraryResults() {
+  const box = $('#libResults');
+  const list = filteredExercises();
+  box.innerHTML = `
+    <div class="small dim" style="margin:2px 2px 8px">${list.length} exercise${list.length === 1 ? '' : 's'}</div>
+    ${list.length ? `<div class="card flush">${list.map(ex => exRowHTML(ex)).join('')}</div>`
+      : `<div class="empty-state"><strong>Nothing matches</strong>Try a different filter or search term.</div>`}`;
+  hydrateThumbs(box);
 }
 
 const exRowHTML = (ex) => `
@@ -601,17 +619,36 @@ function showExerciseDetail(exId) {
     ],
   }) : '';
 
+  const guide = GUIDES[ex.id];
+  const photo = guide?.photo;
+
   openSheet(ex.name, `
-    <div class="anim-stage"><svg class="fig" id="animStage" viewBox="0 0 200 200"></svg></div>
+    ${photo ? `
+      <div class="photo-stage" id="photoStage" data-act="photo-pause" aria-label="Start and end position, tap to pause">
+        <img src="photos/${photo}-0.jpg" alt="${esc(ex.name)}: start position">
+        <img src="photos/${photo}-1.jpg" alt="${esc(ex.name)}: end position" class="end">
+        <span class="photo-tag" id="photoTag"></span>
+      </div>
+      ${guide.shows ? `<div class="small dim photo-note">Photos show a close variation: ${esc(guide.shows)}</div>` : ''}
+      <div class="seg" id="viewSeg" style="margin:10px 0 12px">
+        <button data-view-mode="photo" class="on">Photos</button>
+        <button data-view-mode="anim">Animation</button>
+      </div>
+      <div class="anim-stage" id="animWrap" hidden><svg class="fig" id="animStage" viewBox="0 0 200 200"></svg></div>`
+    : `<div class="anim-stage"><svg class="fig" id="animStage" viewBox="0 0 200 200"></svg></div>`}
     <div class="row wrap" style="justify-content:center;gap:6px;margin-bottom:12px">
       <span class="chip">${esc(eqLabel(ex.eq))}</span>
       <span class="chip">${esc(ex.group)}</span>
       ${ex.uni ? `<span class="chip">Per side</span>` : ''}
+      ${guide?.level ? `<span class="chip">${esc(guide.level[0].toUpperCase() + guide.level.slice(1))}</span>` : ''}
     </div>
 
     <div class="card">
       <h3>How to do it</h3>
-      <div class="small" style="color:var(--text-2)">${esc(ex.tips || '')}</div>
+      ${guide?.steps?.length ? `<ol class="steps">${guide.steps.map(st => `<li>${esc(st)}</li>`).join('')}</ol>
+      <div class="divider"></div>
+      <div class="small" style="color:var(--text-2)"><b>Coach's cue:</b> ${esc(ex.tips || '')}</div>`
+      : `<div class="small" style="color:var(--text-2)">${esc(ex.tips || '')}</div>`}
       <div class="divider"></div>
       <div class="small dim">Works: ${esc(ex.target)} · Suggested rest ${ex.rest}s</div>
     </div>
@@ -639,10 +676,68 @@ function showExerciseDetail(exId) {
       ? `<button class="btn btn-primary" data-act="add-to-workout" data-id="${ex.id}">Add to workout</button>`
       : `<button class="btn btn-primary" data-act="start-with" data-id="${ex.id}">Start workout with this</button>`,
     onOpen: () => {
-      const svg = $('#animStage');
-      if (svg) stopAnim = animate(svg, ex);
+      if (photo) {
+        startPhotoFlip();
+        // Photo not stored yet and no signal: fall back to the animation.
+        ui.detailEx = ex;
+        $$('#photoStage img').forEach((img) => {
+          if (img.complete && !img.naturalWidth) showDetailView('anim', ex);
+          else img.addEventListener('error', () => showDetailView('anim', ex), { once: true });
+        });
+      } else {
+        const svg = $('#animStage');
+        if (svg) stopAnim = animate(svg, ex);
+      }
     },
   });
+}
+
+/* Alternate start and end photos so they read as a movement. */
+function startPhotoFlip() {
+  const stage = $('#photoStage');
+  if (!stage) return;
+  let end = false;
+  const tag = $('#photoTag');
+  const show = () => {
+    stage.classList.toggle('at-end', end);
+    tag.textContent = end ? 'End' : 'Start';
+  };
+  show();
+  const handle = setInterval(() => {
+    if (!document.body.contains(stage)) { clearInterval(handle); return; }
+    if (stage.classList.contains('paused')) return;
+    end = !end;
+    show();
+  }, 1400);
+  const prev = stopAnim;
+  stopAnim = () => { clearInterval(handle); if (prev) prev(); };
+}
+
+function showDetailView(mode, ex) {
+  const stage = $('#photoStage'), wrap = $('#animWrap');
+  if (!stage || !wrap) return;
+  const photo = mode === 'photo';
+  stage.hidden = !photo;
+  const note = $('.photo-note');
+  if (note) note.hidden = !photo;
+  wrap.hidden = photo;
+  $$('#viewSeg button').forEach(b => b.classList.toggle('on', b.dataset.viewMode === mode));
+  if (stopAnim) { stopAnim(); stopAnim = null; }
+  if (photo) startPhotoFlip();
+  else stopAnim = animate($('#animStage'), ex);
+}
+
+/* Store every exercise photo for offline use, a few at a time, once. */
+async function storePhotosOffline() {
+  if (!('caches' in window)) return;
+  try {
+    const cache = await caches.open('train-photos-v1');
+    const have = new Set((await cache.keys()).map(r => new URL(r.url).pathname.split('/').pop()));
+    const todo = PHOTO_FILES.filter(f => !have.has(f.split('/').pop()));
+    for (let i = 0; i < todo.length; i += 6) {
+      await Promise.all(todo.slice(i, i + 6).map(f => cache.add(f).catch(() => {})));
+    }
+  } catch { /* storage full or unavailable: photos still load online */ }
 }
 
 function setLabel(ex, st) {
@@ -890,6 +985,8 @@ function showProfile() {
     <button class="btn btn-danger" data-act="wipe">Erase all data</button>
     <div style="height:14px"></div>
     <div class="small dim" style="text-align:center">Train App · ${S.state.sessions.length} workouts · ${S.allExercises().length} exercises</div>
+    <div class="small dim" style="text-align:center;margin-top:6px">Exercise photos &amp; instructions:
+      <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener" style="color:inherit">free-exercise-db</a> (public domain)</div>
   `, { action: `<button class="btn btn-primary" data-act="save-profile">Save</button>` });
 }
 
@@ -1229,6 +1326,8 @@ const ACTIONS = {
   },
 
   'close-sheet': closeSheet,
+
+  'photo-pause': (el) => el.classList.toggle('paused'),
 };
 
 function moveRoutineItem(i, dir) {
@@ -1305,6 +1404,9 @@ document.addEventListener('click', (ev) => {
     return;
   }
 
+  const viewBtn = ev.target.closest('#viewSeg button');
+  if (viewBtn) { if (ui.detailEx) showDetailView(viewBtn.dataset.viewMode, ui.detailEx); return; }
+
   const seg = ev.target.closest('#unitSeg button, #soundSeg button');
   if (seg) {
     if (seg.dataset.unit) S.state.settings.unit = seg.dataset.unit;
@@ -1333,7 +1435,7 @@ document.addEventListener('change', (ev) => {
 document.addEventListener('input', (ev) => {
   const t = ev.target;
 
-  if (t.id === 'libSearch') { ui.libQuery = t.value; renderLibrary(); $('#libSearch').focus(); return; }
+  if (t.id === 'libSearch') { ui.libQuery = t.value; renderLibraryResults(); return; }
   if (t.id === 'pickSearch') {
     ui.libQuery = t.value;
     const list = filteredExercises().slice(0, 80);
@@ -1445,6 +1547,8 @@ function init() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
+  // Give the app a moment to settle, then fetch photos in the background.
+  window.addEventListener('load', () => setTimeout(storePhotosOffline, 3000));
 }
 
 init();
