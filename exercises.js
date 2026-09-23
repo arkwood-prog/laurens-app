@@ -1,4 +1,4 @@
-/* Laurens App — exercise catalogue.
+/* Train App — exercise catalogue.
  *
  * Each entry:
  *   id        stable slug (never change: sessions reference it)
@@ -34,6 +34,8 @@ const EXERCISES = [
   { id:'bb-rack-pull', name:'Rack Pull', eq:'barbell', group:'Back', target:'Traps, lats, erectors', pattern:'deadlift', rest:180, tips:'Set pins just below the knee. Heavier than a deadlift.' },
   { id:'bb-rdl', name:'Barbell Romanian Deadlift', eq:'barbell', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:150, tips:'Soft knees, push the hips back — feel the stretch.' },
   { id:'bb-stiff-leg-dl', name:'Stiff-Leg Deadlift', eq:'barbell', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:150, tips:'Legs near straight; stop when the back would round.' },
+  { id:'bb-deficit-rdl', name:'Deficit Romanian Deadlift', eq:'barbell', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:150, tips:'Stand on a low plate for extra range; keep the back flat.' },
+  { id:'bb-snatch-grip-rdl', name:'Snatch-Grip Romanian Deadlift', eq:'barbell', group:'Legs', target:'Hamstrings, glutes, upper back', pattern:'rdl', rest:150, tips:'Wide grip, lats tight — the bar stays close all the way.' },
   { id:'bb-good-morning', name:'Good Morning', eq:'barbell', group:'Legs', target:'Hamstrings, erectors', pattern:'goodMorning', rest:150, tips:'Light weight. Hinge, do not squat.' },
   { id:'bb-bent-row', name:'Barbell Bent-Over Row', eq:'barbell', group:'Back', target:'Lats, rhomboids, rear delts', pattern:'row', rest:150, tips:'Torso ~45°. Pull to the belly button.' },
   { id:'bb-pendlay-row', name:'Pendlay Row', eq:'barbell', group:'Back', target:'Lats, mid-back', pattern:'row', rest:150, tips:'Bar rests on the floor each rep. Explode up.' },
@@ -84,6 +86,8 @@ const EXERCISES = [
   { id:'db-split-squat', name:'Dumbbell Bulgarian Split Squat', eq:'dumbbell', group:'Legs', target:'Quads, glutes', pattern:'lunge', rest:120, uni:true, tips:'Rear foot on a bench. Lean slightly forward for glutes.' },
   { id:'db-step-up', name:'Dumbbell Step-Up', eq:'dumbbell', group:'Legs', target:'Quads, glutes', pattern:'lunge', rest:105, uni:true, tips:'Drive through the heel on the box; do not push off the floor.' },
   { id:'db-rdl', name:'Dumbbell Romanian Deadlift', eq:'dumbbell', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:120, tips:'Dumbbells graze the legs on the way down.' },
+  { id:'db-sl-rdl', name:'Single-Leg Dumbbell Romanian Deadlift', eq:'dumbbell', group:'Legs', target:'Hamstrings, glutes, balance', pattern:'singleLegRdl', rest:90, uni:true, tips:'Hips square to the floor; the back leg rises as the chest lowers.' },
+  { id:'db-b-stance-rdl', name:'B-Stance Dumbbell Romanian Deadlift', eq:'dumbbell', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:90, uni:true, tips:'Back toe only for balance — the front leg does the work.' },
   { id:'db-deadlift', name:'Dumbbell Deadlift', eq:'dumbbell', group:'Legs', target:'Glutes, hamstrings, back', pattern:'deadlift', rest:120, tips:'Chest up, weight through the mid-foot.' },
   { id:'db-calf-raise', name:'Dumbbell Calf Raise', eq:'dumbbell', group:'Legs', target:'Calves', pattern:'calfRaise', rest:60, tips:'Full stretch at the bottom, full squeeze on top.' },
   { id:'db-farmers-walk', name:"Farmer's Walk", eq:'dumbbell', group:'Core', target:'Grip, traps, core', pattern:'carry', rest:120, type:'time', tips:'Tall posture, ribs down, small quick steps.' },
@@ -116,6 +120,7 @@ const EXERCISES = [
   { id:'cb-woodchop', name:'Cable Woodchop', eq:'cable', group:'Core', target:'Obliques, core', pattern:'woodchop', rest:75, uni:true, tips:'Pivot the back foot; rotate through the hips.' },
   { id:'cb-crunch', name:'Cable Crunch', eq:'cable', group:'Core', target:'Rectus abdominis', pattern:'cableCrunch', rest:75, tips:'Kneel, curl the ribs to the pelvis. Hips stay still.' },
   { id:'cb-pull-through', name:'Cable Pull-Through', eq:'cable', group:'Glutes', target:'Glutes, hamstrings', pattern:'rdl', rest:90, tips:'Hinge back between the legs, then snap the hips forward.' },
+  { id:'cb-rdl', name:'Cable Romanian Deadlift', eq:'cable', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:105, tips:'Low pulley, step back a pace; constant tension all the way.' },
   { id:'cb-glute-kickback', name:'Cable Glute Kickback', eq:'cable', group:'Glutes', target:'Glutes', pattern:'gluteKickback', rest:75, uni:true, tips:'Keep the standing leg soft; squeeze at the top.' },
   { id:'cb-hip-abduction', name:'Cable Hip Abduction', eq:'cable', group:'Glutes', target:'Glute medius', pattern:'gluteKickback', rest:60, uni:true, tips:'Lift the leg out to the side, toes forward.' },
 
@@ -134,6 +139,7 @@ const EXERCISES = [
   { id:'kb-renegade-row', name:'Kettlebell Renegade Row', eq:'kettlebell', group:'Back', target:'Lats, core', pattern:'plank', rest:105, tips:'Widen the feet to stop the hips rotating.' },
   { id:'kb-deadlift', name:'Kettlebell Deadlift', eq:'kettlebell', group:'Legs', target:'Glutes, hamstrings', pattern:'deadlift', rest:105, tips:'A great way to groove the hinge before swinging.' },
   { id:'kb-rdl', name:'Kettlebell Romanian Deadlift', eq:'kettlebell', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:105, tips:'Hips back, chest tall, bell close.' },
+  { id:'kb-sl-rdl', name:'Single-Leg Kettlebell Romanian Deadlift', eq:'kettlebell', group:'Legs', target:'Hamstrings, glutes, balance', pattern:'singleLegRdl', rest:90, uni:true, tips:'Bell in the opposite hand to the standing leg.' },
   { id:'kb-lunge', name:'Kettlebell Lunge', eq:'kettlebell', group:'Legs', target:'Quads, glutes', pattern:'lunge', rest:105, tips:'Front rack or suitcase hold, both work.' },
   { id:'kb-windmill', name:'Kettlebell Windmill', eq:'kettlebell', group:'Core', target:'Obliques, shoulders, hamstrings', pattern:'sideBend', rest:90, uni:true, tips:'Eyes on the bell overhead the whole time.' },
   { id:'kb-halo', name:'Kettlebell Halo', eq:'kettlebell', group:'Shoulders', target:'Shoulders, thoracic mobility', pattern:'halo', rest:60, tips:'Circle the bell close around the head. Ribs down.' },
@@ -189,6 +195,7 @@ const EXERCISES = [
   { id:'bw-bird-dog', name:'Bird Dog', eq:'bodyweight', group:'Core', target:'Core, erectors', pattern:'birdDog', rest:45, type:'bw', tips:'Opposite arm and leg. Balance a glass on your back.' },
   { id:'bw-dead-bug', name:'Dead Bug', eq:'bodyweight', group:'Core', target:'Deep core', pattern:'deadBug', rest:45, type:'bw', tips:'Exhale as the limbs extend; keep the back flat.' },
   { id:'bw-box-jump', name:'Box Jump', eq:'bodyweight', group:'Legs', target:'Quads, glutes, power', pattern:'squat', rest:120, type:'bw', tips:'Step down between reps — never rebound.' },
+  { id:'bw-sl-rdl', name:'Bodyweight Single-Leg Romanian Deadlift', eq:'bodyweight', group:'Legs', target:'Hamstrings, glutes, balance', pattern:'singleLegRdl', rest:60, uni:true, type:'bw', tips:'Reach the hands to the floor as the back leg lifts.' },
 
   /* ── MACHINE ─────────────────────────────────────────────────────── */
   { id:'mc-leg-press', name:'Leg Press', eq:'machine', group:'Legs', target:'Quads, glutes', pattern:'legPress', rest:150, tips:'Never lock the knees out hard at the top.' },
@@ -207,6 +214,7 @@ const EXERCISES = [
   { id:'mc-hip-abduction', name:'Hip Abduction Machine', eq:'machine', group:'Glutes', target:'Glute medius', pattern:'gluteKickback', rest:60, tips:'Lean forward slightly to bias the glutes.' },
   { id:'mc-back-extension', name:'45° Back Extension', eq:'machine', group:'Back', target:'Erectors, glutes, hamstrings', pattern:'backExtension', rest:90, tips:'Hold a plate to the chest once bodyweight is easy.' },
   { id:'mc-smith-squat', name:'Smith Machine Squat', eq:'machine', group:'Legs', target:'Quads, glutes', pattern:'squat', rest:150, tips:'Feet slightly forward of the bar path.' },
+  { id:'mc-smith-rdl', name:'Smith Machine Romanian Deadlift', eq:'machine', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:120, tips:'Feet slightly forward of the bar so it tracks the thighs.' },
 
   /* ── BAND ────────────────────────────────────────────────────────── */
   { id:'bd-pull-apart', name:'Band Pull-Apart', eq:'band', group:'Shoulders', target:'Rear delts, rhomboids', pattern:'rearDeltFly', rest:45, tips:'Perfect between pressing sets. Arms stay straight.' },
@@ -219,6 +227,7 @@ const EXERCISES = [
   { id:'bd-squat', name:'Band Squat', eq:'band', group:'Legs', target:'Quads, glutes', pattern:'squat', rest:60, tips:'Band across the shoulders, stand on the loop.' },
   { id:'bd-good-morning', name:'Band Good Morning', eq:'band', group:'Legs', target:'Hamstrings, glutes', pattern:'goodMorning', rest:60, tips:'Great warm-up before deadlifts.' },
   { id:'bd-glute-kickback', name:'Band Glute Kickback', eq:'band', group:'Glutes', target:'Glutes', pattern:'gluteKickback', rest:45, uni:true, tips:'Drive the heel straight back, hips square.' },
+  { id:'bd-rdl', name:'Band Romanian Deadlift', eq:'band', group:'Legs', target:'Hamstrings, glutes', pattern:'rdl', rest:75, tips:'Stand on the band; squeeze the glutes hard at the top.' },
 
   /* ── CARDIO ──────────────────────────────────────────────────────── */
   { id:'cd-run', name:'Running', eq:'cardio', group:'Cardio', target:'Cardiovascular, legs', pattern:'run', rest:0, type:'cardio', tips:'Log the duration and distance.' },

@@ -1,4 +1,4 @@
-/* Laurens App — SVG charts.
+/* Train App — SVG charts.
  *
  * Palette: slots 1-3 of the validated dark categorical set (blue / orange /
  * aqua), checked against this app's card surface (#191C21) for the lightness

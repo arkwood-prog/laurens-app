@@ -1,8 +1,9 @@
-/* Laurens App — views, routing and interaction. */
+/* Train App — views, routing and interaction. */
 
 import { EQUIPMENT, GROUPS } from './exercises.js';
 import * as S from './store.js';
 import { animate, renderStill } from './anim.js';
+import * as G from './generator.js';
 import { barChart, hBarChart, lineChart, initVizTooltips, fmtShortDate } from './charts.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -19,6 +20,7 @@ const ui = {
   statsExercise: null,
   pickTarget: null,          // 'workout' | 'routine'
   picked: new Set(),
+  generated: null,           // last generated workout, shown in the sheet
 };
 
 let stopAnim = null;         // teardown for the animation currently on screen
@@ -132,6 +134,8 @@ function startScreenHTML() {
     <button class="btn btn-primary" data-act="quick-start">Empty workout</button>
     <div style="height:10px"></div>
 
+    ${generatorHTML()}
+
     ${routines.length ? `
       <div class="eyebrow" style="margin:16px 2px 8px">Your routines</div>
       <div class="card flush">
@@ -163,6 +167,114 @@ function startScreenHTML() {
     ${last ? `<div class="divider"></div><div class="small dim" style="text-align:center">
       Bodyweight ${esc(displayWeight(last.w, last.u))} ${unit()} · logged ${fmtDate(last.date)}</div>` : ''}
   `;
+}
+
+/* ── workout generator ─────────────────────────────────────────────── */
+
+const GEN_MINUTES = [30, 45, 60, 75];
+
+function genPrefs() {
+  const st = S.state.settings;
+  return { eq: st.genEq || [], groups: st.genGroups || [], minutes: st.genMinutes || 45, goal: st.genGoal || 'muscle' };
+}
+
+function generatorHTML() {
+  const p = genPrefs();
+  const tick = (name, value, label, on) => `
+    <label class="tick-chip"><input type="checkbox" name="${name}" value="${value}" ${on ? 'checked' : ''}>${esc(label)}</label>`;
+
+  return `
+    <div class="eyebrow" style="margin:16px 2px 8px">Generate a workout</div>
+    <div class="card gen-card">
+      <div class="gen-label">Equipment <span>any if none ticked</span></div>
+      <div class="tick-grid">${EQUIPMENT.map(e => tick('genEq', e.id, e.label, p.eq.includes(e.id))).join('')}</div>
+
+      <div class="gen-label">Target body area <span>full body if none ticked</span></div>
+      <div class="tick-grid">${GROUPS.map(g => tick('genGroups', g, g, p.groups.includes(g))).join('')}</div>
+
+      <div class="gen-label">Goal</div>
+      <div class="seg gen-seg" data-pref="genGoal">
+        ${G.GOALS.map(g => `<button data-val="${g.id}" class="${p.goal === g.id ? 'on' : ''}">${esc(g.label)}</button>`).join('')}
+      </div>
+
+      <div class="gen-label">Time</div>
+      <div class="seg gen-seg" data-pref="genMinutes">
+        ${GEN_MINUTES.map(m => `<button data-val="${m}" class="${p.minutes === m ? 'on' : ''}">${m} min</button>`).join('')}
+      </div>
+
+      <button class="btn btn-primary" data-act="generate">⚄ Generate workout</button>
+    </div>`;
+}
+
+function runGenerator() {
+  const opts = genPrefs();
+  if (!G.candidates(opts).length) { toast('No exercises match — tick more boxes'); return; }
+  ui.generated = G.generate(opts);
+  showGenerated();
+}
+
+function showGenerated() {
+  const w = ui.generated;
+  if (!w) return;
+  const scroll = $('#sheet').classList.contains('show') ? $('#sheetBody').scrollTop : 0;
+  openSheet('Your workout', `
+    <label class="field"><span>Workout name</span>
+      <input type="text" id="genName" value="${esc(w.name)}" autocomplete="off"></label>
+    ${w.items.length ? `<div class="card flush" style="margin-bottom:10px">${w.items.map((it, i) => {
+      const ex = S.exById(it.exId);
+      const unitLabel = ex.type === 'time' ? 'sec' : 'reps';
+      return `<div class="list-item gen-item">
+        ${thumbHTML(ex)}
+        <div class="grow" style="min-width:0">
+          <div class="truncate" style="font-weight:650">${esc(ex.name)}</div>
+          <div class="meta truncate">${esc(eqLabel(ex.eq))} · ${esc(ex.target)}</div>
+          ${ex.type === 'cardio' ? `<div class="small dim" style="margin-top:6px">Log time &amp; distance</div>` : `
+          <div class="row" style="margin-top:6px">
+            <input type="number" inputmode="numeric" data-gitem="${i}" data-field="sets" value="${it.sets}" aria-label="Sets">
+            <span class="small dim">sets ×</span>
+            <input type="number" inputmode="numeric" data-gitem="${i}" data-field="reps" value="${it.reps ?? ''}" aria-label="${unitLabel}">
+            <span class="small dim">${unitLabel}</span>
+          </div>`}
+        </div>
+        <div class="gen-tools">
+          <button class="icon-btn" data-act="gen-swap" data-i="${i}" aria-label="Swap exercise" title="Swap">⇄</button>
+          <button class="icon-btn" data-act="gen-del" data-i="${i}" aria-label="Remove" title="Remove">✕</button>
+        </div>
+      </div>`;
+    }).join('')}</div>` : `<div class="banner">Every exercise removed — add some or randomize.</div>`}
+    <div class="row" style="gap:8px">
+      <button class="btn btn-ghost grow" data-act="gen-add">+ Add exercise</button>
+      <button class="btn btn-ghost grow" data-act="gen-again">⚄ Randomize all</button>
+    </div>
+    <div style="height:8px"></div>
+    <button class="btn btn-ghost" data-act="gen-save">Save as routine</button>
+    <div class="small dim" style="margin-top:10px;text-align:center">⇄ swaps an exercise for a similar one that fits your selections.</div>
+  `, {
+    action: `<button class="btn btn-primary" data-act="gen-start" ${w.items.length ? '' : 'disabled'}>Start this workout</button>`,
+    onOpen: (body) => { hydrateThumbs(body); body.scrollTop = scroll; },
+  });
+}
+
+function genName() {
+  const n = ($('#genName')?.value || '').trim();
+  if (n) ui.generated.name = n;
+  return ui.generated.name;
+}
+
+/* Swap an exercise in the running workout for a similar one. */
+function swapActiveEntry(ei) {
+  const a = S.state.active;
+  const e = a.entries[ei];
+  const alt = G.swapFor(e.exId, genPrefs(), a.entries.map(x => x.exId))
+    || G.swapFor(e.exId, { eq: [] }, a.entries.map(x => x.exId));
+  if (!alt) { toast('No similar exercise available'); return; }
+  if (e.sets.some(st => st.done) && !confirm('Sets already ticked for this exercise will be cleared. Swap anyway?')) return;
+  const reps = e.sets[0]?.r ?? e.sets[0]?.sec ?? null;
+  a.entries[ei] = { exId: alt.id, sets: e.sets.map(() => blankSet(alt, { reps })) };
+  S.save();
+  closeSheet();
+  render();
+  toast(`Swapped for ${alt.name}`);
 }
 
 function routineSummary(r) {
@@ -777,7 +889,7 @@ function showProfile() {
     <div style="height:8px"></div>
     <button class="btn btn-danger" data-act="wipe">Erase all data</button>
     <div style="height:14px"></div>
-    <div class="small dim" style="text-align:center">Laurens App · ${S.state.sessions.length} workouts · ${S.allExercises().length} exercises</div>
+    <div class="small dim" style="text-align:center">Train App · ${S.state.sessions.length} workouts · ${S.allExercises().length} exercises</div>
   `, { action: `<button class="btn btn-primary" data-act="save-profile">Save</button>` });
 }
 
@@ -872,7 +984,7 @@ function exportBackup() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `laurens-app-backup-${S.todayISO()}.json`;
+  a.download = `train-app-backup-${S.todayISO()}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -928,6 +1040,55 @@ const ACTIONS = {
     startWorkout(newSession('Workout', null, [{ exId: el.dataset.id, sets: 3 }]));
   },
 
+  'generate': runGenerator,
+  'gen-again': () => {
+    const typed = genName();
+    const w = G.generate(genPrefs());
+    if (typed !== G.titleFor(genPrefs().groups)) w.name = typed;   // keep a name you typed
+    ui.generated = w;
+    showGenerated();
+  },
+  'gen-del': (el) => {
+    genName();
+    ui.generated.items.splice(+el.dataset.i, 1);
+    showGenerated();
+  },
+  'gen-swap': (el) => {
+    genName();
+    const w = ui.generated, i = +el.dataset.i;
+    const alt = G.swapFor(w.items[i].exId, genPrefs(), w.items.map(it => it.exId));
+    if (!alt) { toast('No other exercise fits — tick more boxes'); return; }
+    w.items[i] = { exId: alt.id, ...G.prescribe(alt, genPrefs().goal) };
+    showGenerated();
+  },
+  'gen-add': () => {
+    genName();
+    const w = ui.generated;
+    const ex = G.extraFor(genPrefs(), w.items.map(it => it.exId));
+    if (!ex) { toast('Every matching exercise is already in'); return; }
+    w.items.push({ exId: ex.id, ...G.prescribe(ex, genPrefs().goal) });
+    showGenerated();
+    $('#sheetBody').scrollTop = $('#sheetBody').scrollHeight;
+  },
+  'gen-start': () => {
+    const w = ui.generated;
+    if (!w || !w.items.length) return;
+    const name = genName();
+    closeSheet();
+    startWorkout(newSession(name, null, w.items));
+  },
+  'gen-save': () => {
+    const w = ui.generated;
+    if (!w || !w.items.length) return;
+    S.state.routines.push({
+      id: S.uid(), name: genName(), note: w.notes || '',
+      items: w.items.map(it => ({ ...it })), created: new Date().toISOString(),
+    });
+    S.saveNow();
+    closeSheet();
+    toast('Saved to Routines');
+  },
+
   'add-exercise': () => openPicker('workout'),
   'pick-for-routine': () => openPicker('routine'),
   'confirm-pick': confirmPick,
@@ -964,6 +1125,8 @@ const ACTIONS = {
     openSheet(ex.name, `
       <button class="btn btn-ghost" data-act="ex-detail" data-id="${ex.id}">View animation &amp; history</button>
       <div style="height:10px"></div>
+      <button class="btn btn-ghost" data-act="swap-entry" data-ei="${ei}">⇄ Swap for a similar exercise</button>
+      <div style="height:10px"></div>
       <button class="btn btn-ghost" data-act="move-entry" data-ei="${ei}" data-dir="-1">Move up</button>
       <div style="height:10px"></div>
       <button class="btn btn-ghost" data-act="move-entry" data-ei="${ei}" data-dir="1">Move down</button>
@@ -971,6 +1134,8 @@ const ACTIONS = {
       <button class="btn btn-danger" data-act="remove-entry" data-ei="${ei}">Remove from workout</button>
     `);
   },
+
+  'swap-entry': (el) => swapActiveEntry(+el.dataset.ei),
 
   'move-entry': (el) => {
     const ei = +el.dataset.ei, dir = +el.dataset.dir;
@@ -1131,6 +1296,15 @@ document.addEventListener('click', (ev) => {
     return;
   }
 
+  const genBtn = ev.target.closest('.gen-seg button');
+  if (genBtn) {
+    const seg = genBtn.parentElement, key = seg.dataset.pref;
+    S.state.settings[key] = key === 'genMinutes' ? +genBtn.dataset.val : genBtn.dataset.val;
+    S.save();
+    $$('button', seg).forEach(b => b.classList.toggle('on', b === genBtn));
+    return;
+  }
+
   const seg = ev.target.closest('#unitSeg button, #soundSeg button');
   if (seg) {
     if (seg.dataset.unit) S.state.settings.unit = seg.dataset.unit;
@@ -1145,6 +1319,14 @@ document.addEventListener('click', (ev) => {
     ev.preventDefault();
     ACTIONS[act.dataset.act](act);
   }
+});
+
+/* Generator tick boxes: remember the selection without re-rendering. */
+document.addEventListener('change', (ev) => {
+  const t = ev.target;
+  if (t.name !== 'genEq' && t.name !== 'genGroups') return;
+  S.state.settings[t.name] = $$(`input[name=${t.name}]:checked`).map(i => i.value);
+  S.save();
 });
 
 /* Live-updating numeric inputs: never re-render, or the keyboard closes. */
@@ -1174,6 +1356,13 @@ document.addEventListener('input', (ev) => {
     st[t.dataset.field] = isNaN(v) ? null : v;
     st.u = unit();
     S.save();
+    return;
+  }
+
+  const gitem = t.dataset.gitem;
+  if (gitem !== undefined && ui.generated) {
+    const v = parseInt(t.value, 10);
+    ui.generated.items[+gitem][t.dataset.field] = isNaN(v) ? null : Math.max(1, v);
     return;
   }
 

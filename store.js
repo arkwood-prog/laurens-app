@@ -1,4 +1,4 @@
-/* Laurens App — persistence and derived statistics.
+/* Train App — persistence and derived statistics.
  *
  * Everything lives in localStorage on the phone. No account, no server, no
  * network call anywhere in the app.
@@ -39,7 +39,7 @@ function emptyState() {
   return {
     v: 2,
     profile: { name: '', heightCm: null, sex: '', birthYear: null },
-    settings: { unit: 'kg', defaultRest: 90, sound: true, autoRest: true },
+    settings: { unit: 'kg', defaultRest: 90, sound: true, autoRest: true, genEq: [], genGroups: [], genMinutes: 45, genGoal: 'muscle' },
     body: [],
     routines: [],
     sessions: [],
@@ -119,7 +119,7 @@ function persist(s) {
     localStorage.setItem(KEY, JSON.stringify(s));
     return true;
   } catch (e) {
-    console.warn('Laurens App: could not save', e);
+    console.warn('Train App: could not save', e);
     return false;
   }
 }
@@ -410,14 +410,14 @@ export function bmi() {
 /* ── backup ────────────────────────────────────────────────────────── */
 
 export function exportJSON() {
-  return JSON.stringify({ app: 'Laurens App', exported: new Date().toISOString(), data: state }, null, 2);
+  return JSON.stringify({ app: 'Train App', exported: new Date().toISOString(), data: state }, null, 2);
 }
 
 export function importJSON(text) {
   const parsed = JSON.parse(text);
   const next = parsed.data || parsed;
   if (!next || typeof next !== 'object' || !Array.isArray(next.sessions)) {
-    throw new Error('That file does not look like a Laurens App backup.');
+    throw new Error('That file does not look like a Train App backup.');
   }
   const base = emptyState();
   for (const k of Object.keys(base)) if (next[k] === undefined) next[k] = base[k];

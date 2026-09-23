@@ -1,6 +1,6 @@
 {
-  "name": "Laurens App — Workout Tracker",
-  "short_name": "Laurens App",
+  "name": "Train App — Workout Tracker",
+  "short_name": "Train App",
   "description": "Offline strength training log: build routines, log sets and reps, watch the movement, track your progress. All data stays on your phone.",
   "start_url": "./index.html",
   "scope": "./",
