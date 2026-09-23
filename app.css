@@ -86,7 +86,7 @@ header h1 span { color: var(--accent); }
 .icon-btn:active { background: var(--surface-3); }
 
 main { padding: 4px 14px 28px; }
-section[hidden] { display: none; }
+[hidden] { display: none !important; }
 
 /* ── typography helpers ───────────────────────────────────────────── */
 
@@ -394,6 +394,38 @@ textarea { min-height: 68px; resize: vertical; }
   max-width: 260px;
 }
 .anim-stage svg { width: 100%; height: 100%; display: block; }
+
+/* Real-photo demo: start and end positions cross-fade. */
+.photo-stage {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-2);
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.photo-stage img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: opacity 0.45s ease;
+}
+.photo-stage img.end { opacity: 0; }
+.photo-stage.at-end img.end { opacity: 1; }
+.photo-tag {
+  position: absolute; left: 10px; bottom: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(15, 17, 20, 0.75);
+  color: #fff;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+}
+.photo-stage.paused .photo-tag::after { content: ' · paused'; font-weight: 500; }
+.photo-note { text-align: center; margin-bottom: 2px; }
+.steps { margin: 4px 0 0; padding-left: 20px; color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.steps li { margin-bottom: 7px; padding-left: 2px; }
+.steps li:last-child { margin-bottom: 0; }
 
 /* Figure and equipment strokes, shared by the stage and the list thumbnails. */
 svg.fig { stroke-linecap: round; stroke-linejoin: round; fill: none; }

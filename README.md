@@ -21,8 +21,15 @@ routine and measurement lives in the phone's own storage.
 - **Set logging** — weight and reps per set, with last session's numbers shown
   as placeholders so you just tap through. Bodyweight moves take added weight;
   planks and carries log seconds; cardio logs minutes and distance.
-- **Animations** — every exercise has an animated figure showing the movement,
-  the equipment and the bench/rack/cable it uses.
+- **Real photos and step-by-step instructions** — 198 exercises show photos of
+  a person at the start and end of the movement, alternating so they read as
+  the movement, plus numbered steps and a difficulty level. Tap the photo to
+  pause. Where the photos are a close variation (say, a kettlebell version of
+  a dumbbell move) the app says so. Photos are saved on the phone in the
+  background so they work offline.
+- **Animations** — every exercise also has an animated figure showing the
+  movement, the equipment and the bench/rack/cable it uses (the **Animation**
+  tab on the exercise screen, and the list thumbnails).
 - **Rest timer** — starts automatically when you tick a set, with a countdown
   ring, ±15s and a chime.
 - **History** — every finished session, with a per-exercise breakdown.
@@ -51,13 +58,14 @@ the URL never expires.
 
 On the empty repo page, click **uploading an existing file**.
 
-Every file sits at the top level — there are deliberately **no subfolders**,
-because GitHub's "choose your files" picker cannot select folders and silently
-leaves them behind.
+Every file sits at the top level except the `photos` folder. GitHub's
+"choose your files" picker cannot select folders and silently leaves them
+behind, so **drag and drop** instead: it keeps folders.
 
-Open `LaurensWorkouts` in File Explorer, press **Ctrl+A** to select everything,
-and drag it onto the GitHub upload area (or use "choose your files", which now
-works too). Wait until all 15 files are listed, then **Commit changes**.
+Open `LaurensWorkouts` in File Explorer, press **Ctrl+A** to select everything
+(including `photos`), and drag it onto the GitHub upload area. Wait until all
+the files are listed (the 16 app files plus 334 photos), then **Commit
+changes**.
 
 The repo root must end up looking like this — `index.html` at the top level,
 no folder wrapping it:
@@ -65,7 +73,7 @@ no folder wrapping it:
 ```
 index.html   manifest.json   sw.js   README.md
 app.css      app.js   store.js   exercises.js   anim.js   charts.js
-generator.js
+generator.js   guides.js   photos/
 icon-192.png   icon-512.png   apple-touch-icon.png
 .nojekyll    .gitignore
 ```
@@ -157,6 +165,14 @@ re-import on a new phone via **Import backup**. If you used the earlier version
 of this app, its history is imported automatically the first time you open this
 one.
 
+## About the photos and instructions
+
+They come from [free-exercise-db](https://github.com/yuhonas/free-exercise-db),
+released into the public domain (Unlicense). The project does not document
+where its photos originally came from, so treat them as fine for personal use
+rather than for an app you sell. They are resized copies (about 7 MB in
+total); `guides.js` maps each of this app's exercises to its photos and steps.
+
 ## About the animations
 
 They are original, drawn by this app in SVG and released as public domain
@@ -169,8 +185,7 @@ hands stay on the bar in every position.
 
 ## Files
 
-Everything is at the top level — no subfolders, so the whole app uploads to a
-static host in one go.
+Everything is at the top level apart from `photos/`.
 
 | Path | Purpose |
 |---|---|
@@ -182,6 +197,8 @@ static host in one go.
 | `anim.js` | Animation engine and movement patterns |
 | `charts.js` | SVG charts |
 | `generator.js` | Workout generator engine |
+| `guides.js` | Photo and instruction data for each exercise |
+| `photos/` | Exercise photos (`<name>-0.jpg` start, `<name>-1.jpg` end) |
 | `sw.js` | Service worker (offline cache) |
 | `.nojekyll` | Stops GitHub Pages running Jekyll over the files |
 
