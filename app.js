@@ -536,19 +536,26 @@ function saveRoutine() {
 
 /* ── LIBRARY ───────────────────────────────────────────────────────── */
 
+/* Gym shorthand people actually type. */
+const SEARCH_ALIASES = {
+  rdl: 'romanian deadlift', sldl: 'stiff-leg deadlift', ohp: 'overhead press',
+  db: 'dumbbell', bb: 'barbell', kb: 'kettlebell', bw: 'bodyweight', sl: 'single-leg',
+};
+
 function filteredExercises() {
-  const q = ui.libQuery.trim().toLowerCase();
+  // Every word must match somewhere; "db rdl" finds Dumbbell Romanian Deadlift.
+  const words = ui.libQuery.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    .map(w => SEARCH_ALIASES[w] || w);
   return S.allExercises().filter(ex => {
     if (ui.libEq !== 'all' && ex.eq !== ui.libEq) return false;
     if (ui.libGroup !== 'all' && ex.group !== ui.libGroup) return false;
-    if (q && !(ex.name.toLowerCase().includes(q) || ex.target.toLowerCase().includes(q))) return false;
-    return true;
+    const hay = `${ex.name} ${ex.target} ${ex.eq}`.toLowerCase();
+    return words.every(w => hay.includes(w));
   });
 }
 
 function renderLibrary() {
   const root = $('#view-library');
-  const list = filteredExercises();
 
   root.innerHTML = `
     <h2>Exercise library</h2>
@@ -562,13 +569,23 @@ function renderLibrary() {
       ${GROUPS.map(g => `<button class="chip ${ui.libGroup === g ? 'on' : ''}" data-group="${g}">${esc(g)}</button>`).join('')}
     </div>
 
-    <div class="small dim" style="margin:2px 2px 8px">${list.length} exercise${list.length === 1 ? '' : 's'}</div>
-    ${list.length ? `<div class="card flush">${list.map(ex => exRowHTML(ex)).join('')}</div>`
-      : `<div class="empty-state"><strong>Nothing matches</strong>Try a different filter or search term.</div>`}
+    <div id="libResults"></div>
     <div style="height:8px"></div>
     <button class="btn btn-ghost" data-act="new-custom">+ Create custom exercise</button>
   `;
-  hydrateThumbs(root);
+  renderLibraryResults();
+}
+
+/* Only the results change while typing. Rebuilding the search box itself
+ * would put iOS's cursor back at the start, typing the query backwards. */
+function renderLibraryResults() {
+  const box = $('#libResults');
+  const list = filteredExercises();
+  box.innerHTML = `
+    <div class="small dim" style="margin:2px 2px 8px">${list.length} exercise${list.length === 1 ? '' : 's'}</div>
+    ${list.length ? `<div class="card flush">${list.map(ex => exRowHTML(ex)).join('')}</div>`
+      : `<div class="empty-state"><strong>Nothing matches</strong>Try a different filter or search term.</div>`}`;
+  hydrateThumbs(box);
 }
 
 const exRowHTML = (ex) => `
@@ -1333,7 +1350,7 @@ document.addEventListener('change', (ev) => {
 document.addEventListener('input', (ev) => {
   const t = ev.target;
 
-  if (t.id === 'libSearch') { ui.libQuery = t.value; renderLibrary(); $('#libSearch').focus(); return; }
+  if (t.id === 'libSearch') { ui.libQuery = t.value; renderLibraryResults(); return; }
   if (t.id === 'pickSearch') {
     ui.libQuery = t.value;
     const list = filteredExercises().slice(0, 80);
