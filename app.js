@@ -21,7 +21,6 @@ const ui = {
   pickTarget: null,          // 'workout' | 'routine'
   picked: new Set(),
   generated: null,           // last generated workout, shown in the sheet
-  generating: false,
 };
 
 let stopAnim = null;         // teardown for the animation currently on screen
@@ -176,17 +175,16 @@ const GEN_MINUTES = [30, 45, 60, 75];
 
 function genPrefs() {
   const st = S.state.settings;
-  return { eq: st.genEq || [], groups: st.genGroups || [], minutes: st.genMinutes || 45 };
+  return { eq: st.genEq || [], groups: st.genGroups || [], minutes: st.genMinutes || 45, goal: st.genGoal || 'muscle' };
 }
 
 function generatorHTML() {
   const p = genPrefs();
-  const ai = !!G.getApiKey();
   const tick = (name, value, label, on) => `
     <label class="tick-chip"><input type="checkbox" name="${name}" value="${value}" ${on ? 'checked' : ''}>${esc(label)}</label>`;
 
   return `
-    <div class="eyebrow" style="margin:16px 2px 8px">Generate a workout${ai ? ' with AI' : ''}</div>
+    <div class="eyebrow" style="margin:16px 2px 8px">Generate a workout</div>
     <div class="card gen-card">
       <div class="gen-label">Equipment <span>any if none ticked</span></div>
       <div class="tick-grid">${EQUIPMENT.map(e => tick('genEq', e.id, e.label, p.eq.includes(e.id))).join('')}</div>
@@ -194,62 +192,66 @@ function generatorHTML() {
       <div class="gen-label">Target body area <span>full body if none ticked</span></div>
       <div class="tick-grid">${GROUPS.map(g => tick('genGroups', g, g, p.groups.includes(g))).join('')}</div>
 
-      <div class="gen-label">Time</div>
-      <div class="seg" id="genMinSeg">
-        ${GEN_MINUTES.map(m => `<button data-min="${m}" class="${p.minutes === m ? 'on' : ''}">${m} min</button>`).join('')}
+      <div class="gen-label">Goal</div>
+      <div class="seg gen-seg" data-pref="genGoal">
+        ${G.GOALS.map(g => `<button data-val="${g.id}" class="${p.goal === g.id ? 'on' : ''}">${esc(g.label)}</button>`).join('')}
       </div>
 
-      ${ai ? `<input type="text" id="genGoal" placeholder="Anything else? e.g. strength focus, sore knee" autocomplete="off" style="margin-top:12px">` : ''}
+      <div class="gen-label">Time</div>
+      <div class="seg gen-seg" data-pref="genMinutes">
+        ${GEN_MINUTES.map(m => `<button data-val="${m}" class="${p.minutes === m ? 'on' : ''}">${m} min</button>`).join('')}
+      </div>
 
-      <button class="btn btn-primary" data-act="generate" style="margin-top:12px" ${ui.generating ? 'disabled' : ''}>
-        ${ui.generating ? 'Generating…' : '✦ Generate workout'}</button>
-      <div class="small dim" style="margin-top:8px;text-align:center">
-        ${ai ? 'Designed by Claude AI from your exercise library.'
-             : 'Using the offline generator. Add a Claude API key under ☰ for AI-designed workouts.'}</div>
+      <button class="btn btn-primary" data-act="generate">⚄ Generate workout</button>
     </div>`;
 }
 
-async function runGenerator() {
-  if (ui.generating) return;
-  const opts = { ...genPrefs(), goal: ($('#genGoal')?.value || '').trim() };
+function runGenerator() {
+  const opts = genPrefs();
   if (!G.candidates(opts).length) { toast('No exercises match — tick more boxes'); return; }
-  ui.generating = true;
-  if (view === 'train' && !S.state.active) renderTrain();
-  try {
-    ui.generated = await G.generate(opts);
-    showGenerated();
-  } finally {
-    ui.generating = false;
-    if (view === 'train' && !S.state.active) renderTrain();
-  }
+  ui.generated = G.generate(opts);
+  showGenerated();
 }
 
 function showGenerated() {
   const w = ui.generated;
   if (!w) return;
-  openSheet(w.source === 'ai' ? 'Your AI workout' : 'Your workout', `
+  const scroll = $('#sheet').classList.contains('show') ? $('#sheetBody').scrollTop : 0;
+  openSheet('Your workout', `
     <label class="field"><span>Workout name</span>
       <input type="text" id="genName" value="${esc(w.name)}" autocomplete="off"></label>
-    ${w.notes ? `<div class="banner">${esc(w.notes)}</div>` : ''}
     ${w.items.length ? `<div class="card flush" style="margin-bottom:10px">${w.items.map((it, i) => {
       const ex = S.exById(it.exId);
-      const dose = ex.type === 'cardio' ? 'Log time & distance'
-        : `${it.sets} × ${it.reps ?? '—'}${ex.type === 'time' ? ' sec' : ''}`;
-      return `<div class="list-item">
+      const unitLabel = ex.type === 'time' ? 'sec' : 'reps';
+      return `<div class="list-item gen-item">
         ${thumbHTML(ex)}
-        <div class="grow">
+        <div class="grow" style="min-width:0">
           <div class="truncate" style="font-weight:650">${esc(ex.name)}</div>
-          <div class="meta truncate">${esc(dose)} · ${esc(ex.target)}</div>
+          <div class="meta truncate">${esc(eqLabel(ex.eq))} · ${esc(ex.target)}</div>
+          ${ex.type === 'cardio' ? `<div class="small dim" style="margin-top:6px">Log time &amp; distance</div>` : `
+          <div class="row" style="margin-top:6px">
+            <input type="number" inputmode="numeric" data-gitem="${i}" data-field="sets" value="${it.sets}" aria-label="Sets">
+            <span class="small dim">sets ×</span>
+            <input type="number" inputmode="numeric" data-gitem="${i}" data-field="reps" value="${it.reps ?? ''}" aria-label="${unitLabel}">
+            <span class="small dim">${unitLabel}</span>
+          </div>`}
         </div>
-        <button class="icon-btn" data-act="gen-del" data-i="${i}" aria-label="Remove">✕</button>
+        <div class="gen-tools">
+          <button class="icon-btn" data-act="gen-swap" data-i="${i}" aria-label="Swap exercise" title="Swap">⇄</button>
+          <button class="icon-btn" data-act="gen-del" data-i="${i}" aria-label="Remove" title="Remove">✕</button>
+        </div>
       </div>`;
-    }).join('')}</div>` : `<div class="banner">Every exercise removed — generate again.</div>`}
-    <button class="btn btn-ghost" data-act="gen-save">Save as routine</button>
+    }).join('')}</div>` : `<div class="banner">Every exercise removed — add some or randomize.</div>`}
+    <div class="row" style="gap:8px">
+      <button class="btn btn-ghost grow" data-act="gen-add">+ Add exercise</button>
+      <button class="btn btn-ghost grow" data-act="gen-again">⚄ Randomize all</button>
+    </div>
     <div style="height:8px"></div>
-    <button class="btn btn-ghost" data-act="gen-again">↻ Generate another</button>
+    <button class="btn btn-ghost" data-act="gen-save">Save as routine</button>
+    <div class="small dim" style="margin-top:10px;text-align:center">⇄ swaps an exercise for a similar one that fits your selections.</div>
   `, {
     action: `<button class="btn btn-primary" data-act="gen-start" ${w.items.length ? '' : 'disabled'}>Start this workout</button>`,
-    onOpen: hydrateThumbs,
+    onOpen: (body) => { hydrateThumbs(body); body.scrollTop = scroll; },
   });
 }
 
@@ -257,6 +259,22 @@ function genName() {
   const n = ($('#genName')?.value || '').trim();
   if (n) ui.generated.name = n;
   return ui.generated.name;
+}
+
+/* Swap an exercise in the running workout for a similar one. */
+function swapActiveEntry(ei) {
+  const a = S.state.active;
+  const e = a.entries[ei];
+  const alt = G.swapFor(e.exId, genPrefs(), a.entries.map(x => x.exId))
+    || G.swapFor(e.exId, { eq: [] }, a.entries.map(x => x.exId));
+  if (!alt) { toast('No similar exercise available'); return; }
+  if (e.sets.some(st => st.done) && !confirm('Sets already ticked for this exercise will be cleared. Swap anyway?')) return;
+  const reps = e.sets[0]?.r ?? e.sets[0]?.sec ?? null;
+  a.entries[ei] = { exId: alt.id, sets: e.sets.map(() => blankSet(alt, { reps })) };
+  S.save();
+  closeSheet();
+  render();
+  toast(`Swapped for ${alt.name}`);
 }
 
 function routineSummary(r) {
@@ -850,11 +868,6 @@ function showProfile() {
       <button data-sound="0" class="${!st.sound ? 'on' : ''}">Silent</button>
     </div>
 
-    <label class="field"><span>Claude API key (for AI workouts)</span>
-      <input type="password" id="pfAiKey" value="${esc(G.getApiKey())}" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
-    <div class="small dim" style="margin:-6px 0 16px">Optional. Stored on this phone only and never included in backups.
-      Get one at console.anthropic.com. Without it, workouts are generated offline.</div>
-
     <h3>Bodyweight log</h3>
     <div class="card">
       <div class="row">
@@ -887,7 +900,6 @@ function saveProfile() {
   p.birthYear = numOrNull($('#pfBirth')?.value);
   const rest = numOrNull($('#pfRest')?.value);
   if (rest) st.defaultRest = Math.max(10, Math.min(600, rest));
-  if ($('#pfAiKey')) G.setApiKey($('#pfAiKey').value.trim());
   S.saveNow();
   closeSheet();
   render();
@@ -1029,11 +1041,34 @@ const ACTIONS = {
   },
 
   'generate': runGenerator,
-  'gen-again': () => { closeSheet(); runGenerator(); },
+  'gen-again': () => {
+    const typed = genName();
+    const w = G.generate(genPrefs());
+    if (typed !== G.titleFor(genPrefs().groups)) w.name = typed;   // keep a name you typed
+    ui.generated = w;
+    showGenerated();
+  },
   'gen-del': (el) => {
     genName();
     ui.generated.items.splice(+el.dataset.i, 1);
     showGenerated();
+  },
+  'gen-swap': (el) => {
+    genName();
+    const w = ui.generated, i = +el.dataset.i;
+    const alt = G.swapFor(w.items[i].exId, genPrefs(), w.items.map(it => it.exId));
+    if (!alt) { toast('No other exercise fits — tick more boxes'); return; }
+    w.items[i] = { exId: alt.id, ...G.prescribe(alt, genPrefs().goal) };
+    showGenerated();
+  },
+  'gen-add': () => {
+    genName();
+    const w = ui.generated;
+    const ex = G.extraFor(genPrefs(), w.items.map(it => it.exId));
+    if (!ex) { toast('Every matching exercise is already in'); return; }
+    w.items.push({ exId: ex.id, ...G.prescribe(ex, genPrefs().goal) });
+    showGenerated();
+    $('#sheetBody').scrollTop = $('#sheetBody').scrollHeight;
   },
   'gen-start': () => {
     const w = ui.generated;
@@ -1090,6 +1125,8 @@ const ACTIONS = {
     openSheet(ex.name, `
       <button class="btn btn-ghost" data-act="ex-detail" data-id="${ex.id}">View animation &amp; history</button>
       <div style="height:10px"></div>
+      <button class="btn btn-ghost" data-act="swap-entry" data-ei="${ei}">⇄ Swap for a similar exercise</button>
+      <div style="height:10px"></div>
       <button class="btn btn-ghost" data-act="move-entry" data-ei="${ei}" data-dir="-1">Move up</button>
       <div style="height:10px"></div>
       <button class="btn btn-ghost" data-act="move-entry" data-ei="${ei}" data-dir="1">Move down</button>
@@ -1097,6 +1134,8 @@ const ACTIONS = {
       <button class="btn btn-danger" data-act="remove-entry" data-ei="${ei}">Remove from workout</button>
     `);
   },
+
+  'swap-entry': (el) => swapActiveEntry(+el.dataset.ei),
 
   'move-entry': (el) => {
     const ei = +el.dataset.ei, dir = +el.dataset.dir;
@@ -1257,11 +1296,12 @@ document.addEventListener('click', (ev) => {
     return;
   }
 
-  const minBtn = ev.target.closest('#genMinSeg button');
-  if (minBtn) {
-    S.state.settings.genMinutes = +minBtn.dataset.min;
+  const genBtn = ev.target.closest('.gen-seg button');
+  if (genBtn) {
+    const seg = genBtn.parentElement, key = seg.dataset.pref;
+    S.state.settings[key] = key === 'genMinutes' ? +genBtn.dataset.val : genBtn.dataset.val;
     S.save();
-    $$('#genMinSeg button').forEach(b => b.classList.toggle('on', b === minBtn));
+    $$('button', seg).forEach(b => b.classList.toggle('on', b === genBtn));
     return;
   }
 
@@ -1316,6 +1356,13 @@ document.addEventListener('input', (ev) => {
     st[t.dataset.field] = isNaN(v) ? null : v;
     st.u = unit();
     S.save();
+    return;
+  }
+
+  const gitem = t.dataset.gitem;
+  if (gitem !== undefined && ui.generated) {
+    const v = parseInt(t.value, 10);
+    ui.generated.items[+gitem][t.dataset.field] = isNaN(v) ? null : Math.max(1, v);
     return;
   }
 

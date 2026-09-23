@@ -39,7 +39,7 @@ function emptyState() {
   return {
     v: 2,
     profile: { name: '', heightCm: null, sex: '', birthYear: null },
-    settings: { unit: 'kg', defaultRest: 90, sound: true, autoRest: true, genEq: [], genGroups: [], genMinutes: 45 },
+    settings: { unit: 'kg', defaultRest: 90, sound: true, autoRest: true, genEq: [], genGroups: [], genMinutes: 45, genGoal: 'muscle' },
     body: [],
     routines: [],
     sessions: [],

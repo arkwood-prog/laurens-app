@@ -210,6 +210,11 @@ h3 { font-size: 15px; font-weight: 650; margin: 0 0 6px; }
 .tick-chip input:checked { background: var(--accent); border-color: var(--accent); }
 .tick-chip input:checked::after { content: '✓'; color: #fff; font-size: 13px; font-weight: 800; line-height: 1; }
 .tick-chip:has(input:checked) { border-color: var(--accent); color: var(--text); }
+.gen-seg { margin-bottom: 14px; }
+.gen-item { align-items: flex-start; }
+.gen-item .thumb { margin-top: 2px; }
+.gen-item input[type=number] { width: 58px; padding: 6px; text-align: center; }
+.gen-tools { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
 
 /* ── form controls ────────────────────────────────────────────────── */
 
@@ -221,7 +226,7 @@ label.field > span {
   margin-bottom: 6px;
 }
 
-input[type=text], input[type=password], input[type=number], input[type=search], input[type=date], textarea, select {
+input[type=text], input[type=number], input[type=search], input[type=date], textarea, select {
   width: 100%;
   background: var(--surface-2);
   border: 1px solid var(--line);

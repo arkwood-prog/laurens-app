@@ -462,6 +462,11 @@ const PATTERNS = {
     { hip: [100, 108], t: 90, hand: [98, 116], ankle: FEET_L, ankle2: FEET_R },
     { hip: [106, 118], t: 32, hand: [116, 146], ankle: FEET_L, ankle2: FEET_R },
   ]},
+  /* The back leg rises in line with the torso as the chest lowers. */
+  singleLegRdl: { tempo: 3.4, props: ['floor'], poses: [
+    { hip: [100, 108], t: 90, hand: [98, 116], ankle: FEET, ankle2: [96, 166] },
+    { hip: [104, 116], t: 18, hand: [118, 150], ankle: FEET, ankle2: [46, 131] },
+  ]},
   /* Same hinge as the RDL, but the bar rides on the shoulders. */
   goodMorning: { tempo: 3.2, props: ['floor'], poses: [
     { hip: [100, 108], t: 90, handRel: [-20, -1], ankle: FEET_L, ankle2: FEET_R },
